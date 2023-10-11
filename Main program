@@ -1,0 +1,120 @@
+//biblioteke
+#include <Wire.h> 
+#include <LiquidCrystal_I2C.h>
+#include "DHT.h"
+// definiranje pinova
+#define echoPin 4
+#define trigPin 5
+#define DHTPIN 2 // Digitalni pin na koji je povezan DHT11
+#define DHTTYPE DHT11
+
+
+LiquidCrystal_I2C lcd(0x3F, 16, 2);
+// Postavljanje LCDa na 0x3F za prikaz 16 karaktera u 2 reda
+DHT dht(DHTPIN, DHTTYPE);
+
+int pumpa = 6;
+int senzorVlaznosti=A0;
+int vrijednost=0 ; // ova varijabla sprema vrijednost senzora vlaznosti tla
+float vlaznost;
+float temperatura;
+long zadnje_ocitanje=0;
+long zadnje_ocitanje_vlaznosti=0;
+long trajanje, udaljenost;
+
+byte stupnjevi[] =
+{
+  B01100,
+  B10010,
+  B10010,
+  B01100,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
+//definiranje izgleda prilagodenog znaka za stupnjeve
+
+void setup() {
+  Serial.begin(9600);
+  
+  pinMode(6,OUTPUT); // pumpa je izlazni pin
+  pinMode(senzorVlaznosti,INPUT); // senzor je ulazni pin
+     
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  //postavljanje pinova ultrazvučnog senzora na izlazne/ulazne
+  
+  lcd.begin();
+  // pokretanje LCD zaslona
+  lcd.backlight();
+  //pokretanje pozadinskog osvjetljenja na LCD zaslonu
+  dht.begin();
+  //pokretanje senzora DHT11
+
+  lcd.createChar(0, stupnjevi);
+  lcd.home();
+  //postavljanje prilagodenog znaka za stupnjeve
+  lcd.print("POZDRAV");
+  }
+
+void loop() {
+ vrijednost=analogRead(senzorVlaznosti);
+ if(vrijednost<500)
+ {
+  digitalWrite(6,LOW);
+ }
+ else
+ {
+  digitalWrite(6,HIGH);
+ }
+Serial.println(vrijednost);
+  if((millis()-zadnje_ocitanje)>30000)
+  {
+    lcd.clear();
+    vlaznost=dht.readHumidity();
+    temperatura=dht.readTemperature();
+    //ocitavanje vrijednosti sa senzora DHT11
+    
+    digitalWrite(trigPin,HIGH);
+    delayMicroseconds(1000);
+    digitalWrite(trigPin, LOW);
+    trajanje=pulseIn(echoPin, HIGH);
+    udaljenost =(trajanje/2)/29.1;
+    //izracunavanje udaljenosti vode od ultrazvučnog senzora
+    udaljenost =map(udaljenost,1,12.5,100,0);
+   
+    lcd.setCursor(0,0);
+    lcd.print("RV:");
+    lcd.print(udaljenost);
+    lcd.println("%    ");
+    //ispis kolicine vode u postotcima
+
+    lcd.setCursor(7,0);
+    lcd.print("V:");
+    lcd.print(vlaznost);
+    lcd.println("% ");
+    //ispis vrijednosti vlažnosti zraka u postotcima
+    lcd.setCursor(0, 1);
+    lcd.print("T:");
+    lcd.print(temperatura);
+    lcd.write(0);
+    lcd.println("C       ");   
+   // Serial.print("V:");
+    //Serial.print(udaljenost);
+    //Serial.println("%");
+    //ispis kolicine vode u postotcima    
+    //Serial.print("H:");
+    //Serial.print(vlaznost);
+    //Serial.println("%");
+    //ispis vrijednosti vlažnosti zraka u postotcima
+    //Serial.print("T:");
+    //Serial.print(temperatura);
+    //Serial.println("C");
+    //ispis vrijednosti temperature u stupnjevima celzijus
+    //ukoliko se zele, iz bilo kojeg razloga, pratiti sva ocitanja na serial monitoru=odkomentirajte prethodne Serial prinite. 
+    zadnje_ocitanje=millis();
+    //postavljanje vremena zadnjeg ocitanja
+  }  
+  
+}
